@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>天体高度・方位角観測ビューア</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .star-visible { background-color: #1e3a5f; }
+    .star-low { background-color: #2d4a6f; }
+    .star-hidden { background-color: #374151; }
+    .sky-bg { background: linear-gradient(to bottom, #0a0a2e, #1a1a4e); }
+    @keyframes twinkle { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+    .twinkle { animation: twinkle 2s infinite; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <header class="sky-bg py-6 px-4 shadow-lg">
+    <div class="max-w-5xl mx-auto">
+      <h1 class="text-2xl md:text-3xl font-bold text-blue-200">🔭 天体高度・方位角観測ビューア</h1>
+      <p class="text-blue-300 mt-1 text-sm">観測地・日時を入力して主要星座の位置を確認</p>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-8">
+
+    <!-- Input Section -->
+    <section class="bg-gray-800 rounded-xl p-5 shadow-lg" aria-label="観測条件入力">
+      <h2 class="text-lg font-semibold text-blue-300 mb-4">📍 観測条件</h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label for="lat" class="block text-sm text-gray-300 mb-1">緯度（北緯 °）</label>
+          <input id="lat" type="number" value="35.6" min="-90" max="90" step="0.1"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400"
+            aria-label="観測地緯度" />
+        </div>
+        <div>
+          <label for="lon" class="block text-sm text-gray-300 mb-1">経度（東経 °）</label>
+          <input id="lon" type="number" value="139.7" min="-180" max="180" step="0.1"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400"
+            aria-label="観測地経度" />
+        </div>
+        <div>
+          <label for="obsDate" class="block text-sm text-gray-300 mb-1">観測日</label>
+          <input id="obsDate" type="date"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400"
+            aria-label="観測日" />
+        </div>
+        <div>
+          <label for="obsTime" class="block text-sm text-gray-300 mb-1">観測時刻（JST）</label>
+          <input id="obsTime" type="time" value="21:00"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400"
+            aria-label="観測時刻" />
+        </div>
+      </div>
+      <button id="calcBtn" onclick="calculate()"
+        class="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+        role="button" aria-label="計算実行">計算する</button>
+    </section>
+
+    <!-- Results Table -->
+    <section class="bg-gray-800 rounded-xl p-5 shadow-lg" aria-label="星座高度・方位角一覧">
+      <h2 class="text-lg font-semibold text-blue-300 mb-4">⭐ 星座高度・方位角一覧</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" role="table" aria-label="星座観測データ">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-600">
+              <th class="text-left py-2 px-3">星座</th>
+              <th class="text-right py-2 px-3">高度 (°)</th>
+              <th class="text-right py-2 px-3">方位角 (°)</th>
+              <th class="text-left py-2 px-3">方向</th>
+              <th class="text-left py-2 px-3">観測状態</th>
+            </tr>
+          </thead>
+          <tbody id="constellationTable">
+            <tr><td colspan="5" class="text-center py-8 text-gray-500">「計算する」をクリックしてください</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Best Season Calendar -->
+    <section class="bg-gray-800 rounded-xl p-5 shadow-lg" aria-label="ベストシーズンカレンダー">
+      <h2 class="text-lg font-semibold text-blue-300 mb-4">📅 観測ベストシーズンカレンダー</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs" role="table" aria-label="星座ベストシーズン">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-600">
+              <th class="text-left py-2 px-2 min-w-[80px]">星座</th>
+              <th class="py-2 px-1 text-center" aria-label="1月">1</th>
+              <th class="py-2 px-1 text-center" aria-label="2月">2</th>
+              <th class="py-2 px-1 text-center" aria-label="3月">3</th>
+              <th class="py-2 px-1 text-center" aria-label="4月">4</th>
+              <th class="py-2 px-1 text-center" aria-label="5月">5</th>
+              <th class="py-2 px-1 text-center" aria-label="6月">6</th>
+              <th class="py-2 px-1 text-center" aria-label="7月">7</th>
+              <th class="py-2 px-1 text-center" aria-label="8月">8</th>
+              <th class="py-2 px-1 text-center" aria-label="9月">9</th>
+              <th class="py-2 px-1 text-center" aria-label="10月">10</th>
+              <th class="py-2 px-1 text-center" aria-label="11月">11</th>
+              <th class="py-2 px-1 text-center" aria-label="12月">12</th>
+            </tr>
+          </thead>
+          <tbody id="seasonCalendar"></tbody>
+        </table>
+        <div class="flex gap-4 mt-3 text-xs text-gray-400">
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-blue-600 inline-block"></span>最良</span>
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-blue-900 inline-block"></span>良好</span>
+          <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-700 inline-block"></span>不可</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bortle Scale Guide -->
+    <section class="bg-gray-800 rounded-xl p-5 shadow-lg" aria-label="ボルトル尺度ガイド">
+      <h2 class="text-lg font-semibold text-blue-300 mb-4">🌃 ボルトル尺度別 望遠鏡推奨倍率ガイド</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" role="table" aria-label="ボルトル尺度と望遠鏡推奨倍率">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-600">
+              <th class="text-left py-2 px-3">レベル</th>
+              <th class="text-left py-2 px-3">環境</th>
+              <th class="text-left py-2 px-3">銀河可視性</th>
+              <th class="text-right py-2 px-3">推奨倍率</th>
+              <th class="text-left py-2 px-3">推奨対象天体</th>
+            </tr>
+          </thead>
+          <tbody id="bortleTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Constellation data: name, RA (hours), Dec (degrees), best months
+    const constellations = [
+      { name: '獅子座',       ra: 10.5, dec: 15,  best: [3,4,5],      symbol: '♌' },
+      { name: '乙女座',       ra: 13.0, dec: -2,  best: [4,5,6],      symbol: '♍' },
+      { name: '蠍座',         ra: 16.5, dec: -27, best: [6,7,8],      symbol: '♏' },
+      { name: '射手座',       ra: 18.5, dec: -25, best: [7,8,9],      symbol: '♐' },
+      { name: '白鳥座',       ra: 20.6, dec: 42,  best: [7,8,9],      symbol: '🦢' },
+      { name: 'カシオペア座', ra: 1.0,  dec: 60,  best: [10,11,12],   symbol: '✨' },
+      { name: 'オリオン座',   ra: 5.5,  dec: 2,   best: [12,1,2],     symbol: '🏹' },
+      { name: 'おおいぬ座',   ra: 6.75, dec: -22, best: [1,2,3],      symbol: '🐕' },
+      { name: 'おうし座',     ra: 4.7,  dec: 15,  best: [11,12,1],    symbol: '♉' },
+      { name: '双子座',       ra: 7.0,  dec: 23,  best: [12,1,2],     symbol: '♊' },
+      { name: 'こと座',       ra: 18.6, dec: 39,  best: [6,7,8],      symbol: '🎵' },
+      { name: 'わし座',       ra: 19.7, dec: 3,   best: [7,8,9],      symbol: '🦅' },
+      { name: '大熊座',       ra: 11.0, dec: 55,  best: [3,4,5],      symbol: '🐻' },
+      { name: '北斗七星',     ra: 12.4, dec: 58,  best: [3,4,5],      symbol: '⭐' },
+      { name: 'ペガスス座',   ra: 23.0, dec: 20,  best: [9,10,11],    symbol: '🐴' },
+    ];
+
+    const bortleData = [
+      { level: 1, env: '完全暗黒地（山岳僻地）', galaxy: '銀河腕・暗黒帯明瞭', mag: '20-50×（低倍率）', obj: '散光星雲・銀河群・球状星団' },
+      { level: 2, env: '真の暗空（山岳）',       galaxy: '銀河かすかに輝く',   mag: '25-80×',          obj: '銀河・散開星団・惑星状星雲' },
+      { level: 3, env: '農村の空',               galaxy: '天の川の構造見える', mag: '50-120×',         obj: '散開星団・球状星団・二重星' },
+      { level: 4, env: '農村/郊外移行域',        galaxy: '天の川わずかに見える',mag: '80-150×',        obj: '明るい星団・惑星・月面' },
+      { level: 5, env: '郊外の空',               galaxy: '天の川うっすら',     mag: '100-200×',        obj: '惑星・明るい星雲・月面' },
+      { level: 6, env: '明るい郊外',             galaxy: '天の川ほぼ不可',     mag: '150-250×',        obj: '惑星・月面・二重星' },
+      { level: 7, env: '郊外/都市移行域',        galaxy: 'わずかに確認',       mag: '150-300×',        obj: '惑星・月面' },
+      { level: 8, env: '都市の空',               galaxy: '不可',               mag: '200-350×（惑星用）', obj: '月面詳細・惑星模様' },
+      { level: 9, env: '明るい都市中心部',       galaxy: '完全不可',           mag: '200-400×',        obj: '月面・内惑星位相変化' },
+    ];
+
+    // Julian Date helper
+    function toJD(year, month, day, hour) {
+      if (month <= 2) { year -= 1; month += 12; }
+      const A = Math.floor(year / 100);
+      const B = 2 - A + Math.floor(A / 4);
+      return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + hour / 24 + B - 1524.5;
+    }
+
+    function calcLST(jd, lonDeg) {
+      const T = (jd - 2451545.0) / 36525.0;
+      let gst = 280.46061837 + 360.98564736629 * (jd - 2451545) + 0.000387933 * T * T;
+      gst = ((gst % 360) + 360) % 360;
+      return ((gst + lonDeg) % 360 + 360) % 360; // degrees
+    }
+
+    function calcAltAz(latDeg, decDeg, haHours) {
+      const lat = latDeg * Math.PI / 180;
+      const dec = decDeg * Math.PI / 180;
+      const ha = haHours * 15 * Math.PI / 180;
+      const sinAlt = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
+      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180 / Math.PI;
+      const cosAz = (Math.sin(dec) - Math.sin(lat) * sinAlt) / (Math.cos(lat) * Math.cos(alt * Math.PI / 180));
+      let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
+      if (Math.sin(ha) > 0) az = 360 - az;
+      return { alt: alt, az: az };
+    }
+
+    function azToDir(az) {
+      const dirs = ['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];
+      return dirs[Math.round(az / 22.5) % 16];
+    }
+
+    function calculate() {
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lon = parseFloat(document.getElementById('lon').value);
+      const dateStr = document.getElementById('obsDate').value;
+      const timeStr = document.getElementById('obsTime').value;
+      if (!dateStr || !timeStr) { alert('日付と時刻を入力してください'); return; }
+
+      const [yr, mo, dy] = dateStr.split('-').map(Number);
+      const [hr, mn] = timeStr.split(':').map(Number);
+      const utHour = (hr + mn / 60) - 9; // JST to UT
+      const jd = toJD(yr, mo, dy, utHour);
+      const lst = calcLST(jd, lon); // degrees
+
+      const tbody = document.getElementById('constellationTable');
+      tbody.innerHTML = '';
+
+      constellations.forEach(c => {
+        const raDeg = c.ra * 15;
+        const haDeg = ((lst - raDeg) % 360 + 360) % 360;
+        const haHours = haDeg / 15;
+        const { alt, az } = calcAltAz(lat, c.dec, haHours > 12 ? haHours - 24 : haHours);
+        const altRound = Math.round(alt * 10) / 10;
+        const azRound = Math.round(az * 10) / 10;
+
+        let status, statusClass, statusText;
+        if (altRound > 30) { statusClass = 'text-green-400'; statusText = '◎ 最良'; }
+        else if (altRound > 10) { statusClass = 'text-yellow-400'; statusText = '○ 良好'; }
+        else if (altRound > 0) { statusClass = 'text-orange-400'; statusText = '△ 低空'; }
+        else { statusClass = 'text-gray-500'; statusText = '× 地平下'; }
+
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-700 hover:bg-gray-750 transition-colors';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-medium">${c.symbol /* xss-ok: constellationsハードコード配列のsymbol */} ${c.name /* xss-ok: constellationsハードコード配列のname */}</td>
+          <td class="py-2 px-3 text-right font-mono ${altRound > 0 ? 'text-blue-300' : 'text-gray-500'}">${altRound > 0 ? altRound.toFixed(1) : '---'}</td>
+          <td class="py-2 px-3 text-right font-mono ${altRound > 0 ? 'text-blue-300' : 'text-gray-500'}">${altRound > 0 ? azRound.toFixed(1) : '---'}</td>
+          <td class="py-2 px-3 text-gray-300">${altRound > 0 ? azToDir(azRound) /* xss-ok: azToDir()はハードコード方角文字列を返す内部関数 */ : '---'}</td>
+          <td class="py-2 px-3 ${statusClass /* xss-ok: ハードコードif-elseから選択したCSSクラス */} font-medium">${statusText /* xss-ok: ハードコードif-elseから選択した文字列 */}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function buildSeasonCalendar() {
+      const tbody = document.getElementById('seasonCalendar');
+      constellations.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-700';
+        let cells = `<td class="py-1.5 px-2 text-xs whitespace-nowrap">${c.name /* xss-ok: constellationsハードコード配列のname */}</td>`;
+        for (let m = 1; m <= 12; m++) {
+          const isBest = c.best.includes(m);
+          const isGood = c.best.map(b => ((b - 1 + 12) % 12) + 1).includes(m) ||
+                         c.best.map(b => (b % 12) + 1).includes(m);
+          let cls = 'bg-gray-700';
+          let label = '×';
+          if (isBest) { cls = 'bg-blue-600'; label = '◎'; }
+          else if (isGood) { cls = 'bg-blue-900'; label = '○'; }
+          cells += `<td class="py-1.5 px-1 text-center"><span class="inline-block w-5 h-5 rounded text-xs leading-5 ${cls}" aria-label="${m}月">${label}</span></td>`;
+        }
+        tr.innerHTML = cells; // xss-ok: cellsはハードコードCSSクラス・固定記号・整数月番号から生成した内部文字列
+        tbody.appendChild(tr);
+      });
+    }
+
+    function buildBortleTable() {
+      const tbody = document.getElementById('bortleTable');
+      const colors = ['bg-indigo-900','bg-indigo-800','bg-blue-900','bg-blue-800','bg-blue-700','bg-teal-800','bg-teal-700','bg-orange-900','bg-red-900'];
+      bortleData.forEach((b, i) => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-700 hover:bg-gray-750';
+        tr.innerHTML = `
+          <td class="py-2 px-3"><span class="inline-block w-8 h-8 rounded-full ${colors[i] /* xss-ok: ハードコードcolors配列のCSSクラス */} text-center leading-8 font-bold text-white">${b.level /* xss-ok: bortleDataハードコード配列のlevel */}</span></td>
+          <td class="py-2 px-3 text-sm">${b.env /* xss-ok: bortleDataハードコード配列のenv */}</td>
+          <td class="py-2 px-3 text-sm text-gray-300">${b.galaxy /* xss-ok: bortleDataハードコード配列のgalaxy */}</td>
+          <td class="py-2 px-3 text-right font-mono text-blue-300 text-sm">${b.mag /* xss-ok: bortleDataハードコード配列のmag */}</td>
+          <td class="py-2 px-3 text-sm text-gray-300">${b.obj /* xss-ok: bortleDataハードコード配列のobj */}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Init
+    document.getElementById('obsDate').value = new Date().toISOString().split('T')[0];
+    buildSeasonCalendar();
+    buildBortleTable();
+    calculate();
+  </script>
+</body>
+</html>
